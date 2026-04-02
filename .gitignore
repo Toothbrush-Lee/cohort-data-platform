@@ -1,0 +1,58 @@
+# ==================== 敏感信息 ====================
+.env
+.env.local
+.env.docker
+.env.production
+*.pem
+*.key
+credentials.json
+credentials.yaml
+
+# ==================== Docker ====================
+.docker/
+docker-compose.override.yml
+
+# ==================== Python ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+uv.lock
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# ==================== Node/Next.js ====================
+node_modules/
+.next/
+out/
+dist/
+build/
+
+# ==================== IDE ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ==================== 存储文件 ====================
+backend/storage/*
+!backend/storage/.gitkeep
+backend/data/storage/*
+!backend/data/storage/.gitkeep
+
+# ==================== Nginx ====================
+nginx/ssl/*
+!nginx/ssl/.gitkeep
+nginx/acme-challenge/*
+
+# ==================== 临时文件 ====================
+*.tmp
+*.bak

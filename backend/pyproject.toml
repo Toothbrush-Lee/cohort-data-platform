@@ -1,0 +1,28 @@
+[project]
+name = "cohort-backend"
+version = "0.1.0"
+description = "队列研究多模态数据中台 - Backend API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "alembic>=1.18.4",
+    "anthropic>=0.87.0",
+    "bcrypt==4.0.1",
+    "boto3>=1.42.80",
+    "fastapi>=0.135.2",
+    "openai>=2.30.0",
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.2",
+    "passlib[bcrypt]>=1.7.4",
+    "pdf2image>=1.17.0",
+    "pillow>=12.2.0",
+    "psycopg2-binary>=2.9.11",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+    "python-dotenv>=1.2.2",
+    "python-jose>=3.5.0",
+    "python-multipart>=0.0.22",
+    "sqlalchemy>=2.0.48",
+    "uvicorn[standard]>=0.42.0",
+]

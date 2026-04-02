@@ -1,0 +1,85 @@
+name: cohort-data-platform
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: cohort-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cohort_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeit}
+      POSTGRES_DB: cohort_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cohort_admin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cohort-network
+
+  # FastAPI 后端 - 生产模式
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: cohort-backend
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cohort_admin}:${POSTGRES_PASSWORD:-changeit}@postgres:5432/cohort_db
+    volumes:
+      - storage:/app/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+    networks:
+      - cohort-network
+
+  # Next.js 前端 - 生产模式
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: cohort-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: /api/v1
+    depends_on:
+      - backend
+    networks:
+      - cohort-network
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: cohort-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/acme-challenge:/usr/share/nginx/html/.well-known/acme-challenge:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - cohort-network
+
+volumes:
+  pgdata:
+    driver: local
+  storage:
+    driver: local
+
+networks:
+  cohort-network:
+    driver: bridge
