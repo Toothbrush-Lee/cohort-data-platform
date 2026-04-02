@@ -317,7 +317,7 @@ docker compose config
 
 确保 `DATABASE_URL` 使用正确的 Docker 服务名：
 ```bash
-DATABASE_URL=postgresql://cohort_admin:changeit@postgres:5432/cohort_db
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cohort_db
 ```
 
 ### 前端无法连接后端

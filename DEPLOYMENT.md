@@ -233,12 +233,13 @@ EOF
 ## 服务说明
 
 ### PostgreSQL
-| 配置项 | 默认值 | 说明 |
-|--------|--------|------|
-| 端口 | 5432 | 内部服务，不暴露到外部 |
-| 数据卷 | pgdata | 持久化存储 |
-| 用户 | cohort_admin | 可在 .env.docker 修改 |
-| 密码 | changeit | **生产环境必须修改** |
+
+| 配置项 | 开发环境默认值 | 生产环境默认值 | 说明 |
+|--------|---------------|---------------|------|
+| 端口 | 5432 (暴露) | 不暴露 | 生产环境仅内部访问 |
+| 数据卷 | pgdata | pgdata | 持久化存储 |
+| 用户 | postgres | cohort_admin | 开发环境使用 postgres |
+| 密码 | postgres | changeit | **生产环境必须修改** |
 
 ### Backend (FastAPI)
 | 配置项 | 默认值 | 说明 |
@@ -379,7 +380,8 @@ docker compose ps
 
 # 进入容器
 docker compose exec backend bash
-docker compose exec postgres psql -U cohort_admin
+docker compose exec postgres psql -U postgres       # 开发环境
+docker compose -f docker-compose.prod.yml exec postgres psql -U cohort_admin  # 生产环境
 
 # 重新构建
 docker compose build --no-cache
@@ -450,8 +452,11 @@ docker top cohort-backend
 curl http://localhost/health
 curl http://localhost:8000/health
 
-# 检查数据库
-docker compose exec postgres pg_isready
+# 检查数据库 (开发环境)
+docker compose exec postgres pg_isready -U postgres
+
+# 检查数据库 (生产环境)
+docker compose -f docker-compose.prod.yml exec postgres pg_isready -U cohort_admin
 ```
 
 ---
@@ -472,8 +477,8 @@ BACKUP_FILE="$BACKUP_DIR/cohort_db_$DATE.sql.gz"
 
 mkdir -p $BACKUP_DIR
 
-# 备份数据库
-docker compose exec -T postgres pg_dump -U cohort_admin cohort_db | gzip > $BACKUP_FILE
+# 备份数据库 (开发环境使用 postgres 用户，生产环境使用 cohort_admin)
+docker compose exec -T postgres pg_dump -U postgres cohort_db | gzip > $BACKUP_FILE
 
 # 删除 30 天前的备份
 find $BACKUP_DIR -name "cohort_db_*.sql.gz" -mtime +30 -delete
@@ -482,9 +487,13 @@ echo "备份完成：$BACKUP_FILE"
 ```
 
 ### 数据库恢复
+
 ```bash
-# 从备份恢复
-gunzip -c cohort_db_20260402_020000.sql.gz | docker compose exec -T postgres psql -U cohort_admin cohort_db
+# 从备份恢复 (开发环境)
+gunzip -c cohort_db_20260402_020000.sql.gz | docker compose exec -T postgres psql -U postgres cohort_db
+
+# 生产环境恢复
+gunzip -c cohort_db_20260402_020000.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U cohort_admin cohort_db
 ```
 
 ### 完整备份

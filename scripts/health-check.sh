@@ -19,7 +19,7 @@ echo "✓ 前端服务正常"
 
 # 检查数据库
 echo "检查数据库..."
-if ! docker compose exec -T postgres pg_isready -U cohort_admin > /dev/null; then
+if ! docker compose exec -T postgres pg_isready -U postgres > /dev/null; then
     echo "❌ 数据库健康检查失败"
     exit 1
 fi

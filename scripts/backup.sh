@@ -10,7 +10,7 @@ mkdir -p $BACKUP_DIR
 echo "开始备份数据库..."
 
 # 备份数据库
-docker compose exec -T postgres pg_dump -U cohort_admin cohort_db | gzip > $BACKUP_FILE
+docker compose exec -T postgres pg_dump -U postgres cohort_db | gzip > $BACKUP_FILE
 
 # 删除 30 天前的备份
 find $BACKUP_DIR -name "cohort_db_*.sql.gz" -mtime +30 -delete
