@@ -8,6 +8,9 @@
 credentials.json
 credentials.yaml
 
+# ==================== 敏感数据（患者资料） ====================
+demodata/
+
 # ==================== Docker ====================
 .docker/
 docker-compose.override.yml
