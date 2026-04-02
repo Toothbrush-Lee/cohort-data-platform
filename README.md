@@ -60,7 +60,6 @@
 
 **部署**
 - Docker + Docker Compose
-- OrbStack (推荐 for Mac)
 
 ---
 
@@ -68,7 +67,7 @@
 
 ### 前提条件
 
-- [Docker](https://docker.com) 或 [OrbStack](https://orbstack.dev) (推荐，更快)
+- [Docker](https://docker.com) 或 [OrbStack](https://orbstack.dev) (Mac 用户推荐)
 
 ### 一键启动
 
@@ -81,23 +80,12 @@ cp .env.docker.example .env.docker
 # 编辑 .env.docker，填入 ANTHROPIC_API_KEY 或 OPENAI_API_KEY
 
 # 3. 启动所有服务
-./start.sh
-```
+docker compose up -d --build
 
-或者手动启动：
+# 4. 查看日志
+docker compose logs -f
 
-```bash
-# 配置环境变量
-cp .env.docker.example .env.docker
-# 编辑 .env.docker
-
-# 启动容器
-docker-compose up -d
-
-# 查看日志
-docker-compose logs -f
-
-# 等待服务就绪后访问
+# 5. 等待服务就绪后访问
 # 前端：http://localhost:3000
 # 后端 API 文档：http://localhost:8000/api/v1/docs
 ```
@@ -108,29 +96,30 @@ docker-compose logs -f
 
 ```bash
 # 进入后端容器
-docker-compose exec backend bash
+docker compose exec backend bash
 
 # 运行迁移
 uv run alembic upgrade head
 
-# 创建默认管理员账户（可选，使用 Python 脚本）
-python -c "
+# 创建默认管理员账户
+python << 'EOF'
 from app.core.database import SessionLocal
 from app.models.tables import User
-from app.api.auth import get_password_hash
+from app.core.security import create_password_hash
 
 db = SessionLocal()
 user = User(
     username='admin',
     email='admin@example.com',
-    hashed_password=get_password_hash('admin123'),
+    hashed_password=create_password_hash('Admin@123456'),
     role='admin',
+    is_active=True
 )
 db.add(user)
 db.commit()
 db.close()
 print('管理员账户创建成功！')
-"
+EOF
 
 # 退出容器
 exit
@@ -140,85 +129,39 @@ exit
 
 ```bash
 # 查看运行状态
-docker-compose ps
+docker compose ps
 
 # 查看所有服务日志
-docker-compose logs -f
+docker compose logs -f
 
 # 查看特定服务日志
-docker-compose logs backend
-docker-compose logs frontend
-docker-compose logs postgres
+docker compose logs backend
+docker compose logs frontend
+docker compose logs postgres
 
 # 重启服务
-docker-compose restart backend
-docker-compose restart frontend
+docker compose restart backend
+docker compose restart frontend
 
 # 停止所有服务
-docker-compose down
+docker compose down
 
 # 停止并删除数据卷（谨慎使用！）
-docker-compose down -v
+docker compose down -v
 
 # 重新构建镜像
-docker-compose build --no-cache
+docker compose build --no-cache
 
 # 进入容器执行命令
-docker-compose exec backend bash
-docker-compose exec frontend sh
+docker compose exec backend bash
+docker compose exec frontend sh
 ```
 
 ---
 
-## 本地开发模式（不推荐，仅用于开发）
+## 本地开发（可选）
 
-### 环境要求
-
-- Python 3.12+ (推荐用 uv 管理)
-- Node.js 20+ (推荐用 mise 管理)
-- PostgreSQL 16+
-- pnpm
-
-### 1. 后端启动
-
-```bash
-cd backend
-
-# 安装依赖
-uv sync
-
-# 配置环境变量
-cp .env.example .env
-# 编辑 .env 配置数据库和 AI API key
-
-# 创建数据库
-createdb cohort_db
-
-# 运行数据库迁移
-uv run alembic upgrade head
-
-# 启动服务
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-访问 http://localhost:8000/api/v1/docs 查看 API 文档
-
-### 2. 前端启动
-
-```bash
-cd frontend
-
-# 安装依赖
-pnpm install
-
-# 配置环境变量
-cp .env.local.example .env.local
-
-# 启动开发服务器
-pnpm dev
-```
-
-访问 http://localhost:3000
+如需本地开发（非 Docker 方式），请参考 [DEPLOYMENT.md](./DEPLOYMENT.md) 中的详细配置说明。
 
 ---
 
@@ -254,8 +197,12 @@ AssessmentData (结构化数据)
 ```
 cohort-data-platform/
 ├── docker-compose.yml        # Docker 编排配置
+├── docker-compose.prod.yml   # 生产环境配置
 ├── .env.docker               # Docker 环境变量
-├── start.sh                  # 一键启动脚本
+├── .gitignore                # Git 忽略文件配置
+├── .gitattributes            # Git 属性配置
+├── .githooks/                # Git 钩子脚本
+│   └── commit-msg            # 提交信息验证钩子
 │
 ├── backend/
 │   ├── Dockerfile
@@ -276,10 +223,18 @@ cohort-data-platform/
 │       ├── lib/              # API 封装
 │       └── types/            # TypeScript 类型
 │
-├── README.md                 # 项目文档
-├── DOCS.md                   # 使用规范 (SOP)
-├── QUICKSTART.md             # 快速开始指南
-└── plan.md                   # 需求文档
+├── nginx/
+│   ├── nginx.conf            # Nginx 反向代理配置
+│   └── ssl/                  # SSL 证书目录
+│
+├── scripts/
+│   ├── backup.sh             # 数据库备份脚本
+│   └── health-check.sh       # 健康检查脚本
+│
+├── README.md                 # 项目说明（本文档）
+├── DEPLOYMENT.md             # Docker 部署详细指南
+├── DOCS.md                   # 数据采集、审核、分析规范 (SOP)
+└── GIT_GUIDE.md              # Git 版本管理使用指南
 ```
 
 ---
@@ -324,9 +279,9 @@ cohort-data-platform/
 
 **默认管理员账户：**
 - 用户名：`admin`
-- 密码：`admin123`
+- 密码：`Admin@123456`
 
-**注意**：首次登录后请修改默认密码！
+**注意**：首次登录后请立即修改默认密码！
 
 ---
 
@@ -352,17 +307,17 @@ LLM_PROVIDER=openai
 
 ```bash
 # 查看日志
-docker-compose logs
+docker compose logs
 
 # 检查配置
-docker-compose config
+docker compose config
 ```
 
 ### 数据库连接失败
 
 确保 `DATABASE_URL` 使用正确的 Docker 服务名：
 ```bash
-DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cohort_db
+DATABASE_URL=postgresql://cohort_admin:changeit@postgres:5432/cohort_db
 ```
 
 ### 前端无法连接后端
@@ -376,13 +331,13 @@ BACKEND_CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
 
 ```bash
 # 停止并删除所有容器和数据卷
-docker-compose down -v
+docker compose down -v
 
 # 重新启动
-docker-compose up -d
+docker compose up -d
 
 # 重新运行迁移
-docker-compose exec backend uv run alembic upgrade head
+docker compose exec backend uv run alembic upgrade head
 ```
 
 ---
@@ -397,8 +352,9 @@ docker-compose exec backend uv run alembic upgrade head
 
 ## 文档
 
+- [DEPLOYMENT.md](./DEPLOYMENT.md) - Docker 部署详细指南
 - [DOCS.md](./DOCS.md) - 数据采集、审核、分析规范 (SOP)
-- [QUICKSTART.md](./QUICKSTART.md) - 快速开始指南
+- [GIT_GUIDE.md](./GIT_GUIDE.md) - Git 版本管理使用指南
 
 ---
 
