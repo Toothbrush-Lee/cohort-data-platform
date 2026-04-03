@@ -24,9 +24,14 @@ export default function LoginPage() {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (token) {
-      // 获取来源页面
-      const from = searchParams.get('from') || '/subjects'
-      router.push(from)
+      // 获取来源页面，默认到研究列表
+      const from = searchParams.get('from') || '/studies'
+      // 避免循环重定向
+      if (from !== '/login') {
+        router.push(from)
+      } else {
+        router.push('/studies')
+      }
     } else {
       setChecking(false)
     }
@@ -45,10 +50,12 @@ export default function LoginPage() {
       await authApi.login(formData.username, formData.password)
       toast.success('登录成功')
 
-      // 获取来源页面
-      const from = searchParams.get('from') || '/subjects'
+      // 获取来源页面，默认到研究列表
+      const from = searchParams.get('from') || '/studies'
+      // 避免循环重定向
+      const redirectUrl = from !== '/login' ? from : '/studies'
       // 使用 window.location.href 强制刷新页面，让 middleware 获取最新的 cookie
-      window.location.href = from
+      window.location.href = redirectUrl
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '登录失败'
       console.error('Login error:', error)
