@@ -44,10 +44,12 @@ export default function DataPage() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [visitFilter, setVisitFilter] = useState('all')
   const [selectedData, setSelectedData] = useState<AssessmentWithDetails | null>(null)
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
 
   const assessmentTypes = ['EndoPAT', 'TCD', 'Vicorder', 'BloodTest', 'CGM', 'Wearable']
+  const visitTypes = ['Baseline', 'V1', 'V3', 'V6', 'V12', 'Other']
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -190,7 +192,8 @@ export default function DataPage() {
     const matchStatus = statusFilter === 'all' ||
       (statusFilter === 'verified' && item.is_verified) ||
       (statusFilter === 'pending' && !item.is_verified)
-    return matchSearch && matchType && matchStatus
+    const matchVisit = visitFilter === 'all' || item.visit_name === visitFilter
+    return matchSearch && matchType && matchStatus && matchVisit
   })
 
   return (
@@ -216,7 +219,7 @@ export default function DataPage() {
         {/* 筛选器 */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>搜索</Label>
                 <Input
@@ -248,6 +251,19 @@ export default function DataPage() {
                   <option value="all">全部</option>
                   <option value="verified">已审核</option>
                   <option value="pending">待审核</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>随访类型</Label>
+                <select
+                  value={visitFilter}
+                  onChange={(e) => setVisitFilter(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="all">全部</option>
+                  {visitTypes.map((visit) => (
+                    <option key={visit} value={visit}>{visit}</option>
+                  ))}
                 </select>
               </div>
             </div>
