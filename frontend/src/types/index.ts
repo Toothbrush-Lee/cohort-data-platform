@@ -53,6 +53,12 @@ export interface AssessmentData {
   verified_by?: number
   created_at: string
   updated_at: string
+  sample_time?: string
+  // 额外信息（列表接口返回）
+  subject_code?: string
+  subject_name_pinyin?: string
+  visit_name?: string
+  visit_date?: string
 }
 
 // 用户

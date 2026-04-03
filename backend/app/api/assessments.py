@@ -82,7 +82,11 @@ async def list_assessments(
     current_user = Depends(get_current_active_user)
 ):
     """获取检查数据列表"""
-    query = db.query(AssessmentData)
+    query = db.query(AssessmentData, Visit, Subject).join(
+        Visit, AssessmentData.visit_id == Visit.id
+    ).join(
+        Subject, Visit.subject_id == Subject.id
+    )
 
     if visit_id:
         query = query.filter(AssessmentData.visit_id == visit_id)
@@ -91,8 +95,32 @@ async def list_assessments(
     if is_verified is not None:
         query = query.filter(AssessmentData.is_verified == is_verified)
 
-    assessments = query.offset(skip).limit(limit).all()
-    return assessments
+    results = query.offset(skip).limit(limit).all()
+
+    # 返回带有受试者信息的数据
+    data = []
+    for assessment, visit, subject in results:
+        item = {
+            "id": assessment.id,
+            "visit_id": assessment.visit_id,
+            "file_id": assessment.file_id,
+            "assessment_type": assessment.assessment_type,
+            "extracted_data": assessment.extracted_data,
+            "is_verified": assessment.is_verified,
+            "sample_time": assessment.sample_time,
+            "verified_at": assessment.verified_at,
+            "verified_by": assessment.verified_by,
+            "created_at": assessment.created_at,
+            "updated_at": assessment.updated_at,
+            # 额外添加受试者和随访信息
+            "subject_code": subject.subject_code,
+            "subject_name_pinyin": subject.name_pinyin,
+            "visit_name": visit.visit_name,
+            "visit_date": visit.visit_date,
+        }
+        data.append(item)
+
+    return data
 
 
 @router.get("/export")

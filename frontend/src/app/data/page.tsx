@@ -184,7 +184,8 @@ export default function DataPage() {
   const filteredData = data.filter((item) => {
     const matchSearch = !search ||
       item.assessment_type.toLowerCase().includes(search.toLowerCase()) ||
-      String(item.id).includes(search)
+      String(item.id).includes(search) ||
+      (item.subject_code && item.subject_code.toLowerCase().includes(search.toLowerCase()))
     const matchType = typeFilter === 'all' || item.assessment_type === typeFilter
     const matchStatus = statusFilter === 'all' ||
       (statusFilter === 'verified' && item.is_verified) ||
@@ -219,7 +220,7 @@ export default function DataPage() {
               <div className="space-y-2">
                 <Label>搜索</Label>
                 <Input
-                  placeholder="搜索类型或 ID..."
+                  placeholder="搜索检测类型、ID 或受试者编号..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -281,7 +282,8 @@ export default function DataPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>受试者编号</TableHead>
+                    <TableHead>姓名</TableHead>
                     <TableHead>检测类型</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead>采样时间</TableHead>
@@ -292,7 +294,8 @@ export default function DataPage() {
                 <TableBody>
                   {filteredData.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.id}</TableCell>
+                      <TableCell className="font-medium">{item.subject_code || '-'}</TableCell>
+                      <TableCell>{item.subject_name_pinyin || '-'}</TableCell>
                       <TableCell>
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
                           {item.assessment_type}
