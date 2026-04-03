@@ -6,7 +6,6 @@ const protectedRoutes = [
   '/subjects',
   '/visits',
   '/upload',
-  '/review',
   '/data',
   '/export',
   '/enter',

@@ -213,7 +213,7 @@ export default function VisitsPage() {
                         <Link href={`/upload?visit_id=${visit.id}`}>
                           <Button variant="ghost" size="sm">上传</Button>
                         </Link>
-                        <Link href={`/review?visit_id=${visit.id}`}>
+                        <Link href={`/enter?visit_id=${visit.id}`}>
                           <Button variant="ghost" size="sm">审核</Button>
                         </Link>
                         <Button
