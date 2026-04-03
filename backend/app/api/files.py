@@ -21,7 +21,6 @@ from app.api.auth import get_current_active_user
 from app.services.ai_extractor import extract_data_from_file
 
 router = APIRouter()
-    return visit.subject.study_id
 
 
 def generate_stored_filename(original_filename: str, visit_id: int, file_type: str) -> str:
