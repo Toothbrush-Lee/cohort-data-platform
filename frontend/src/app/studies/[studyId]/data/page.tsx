@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -78,13 +78,17 @@ export default function StudyDataPage() {
   const getSubjectByCode = (code: string) => subjects.find(s => s.subject_code === code)
   const getVisitById = (visitId: number) => visits.find(v => v.id === visitId)
 
+  // Use Maps for O(1) lookup performance
+  const subjectMap = useMemo(() => new Map(subjects.map(s => [s.subject_code, s])), [subjects])
+  const visitMap = useMemo(() => new Map(visits.map(v => [v.id, v])), [visits])
+
   // 获取所有随访类型（去重）
   const visitTypes = [...new Set(visits.map(v => v.visit_name))]
 
   // 筛选数据
-  const filteredAssessments = assessments.filter(a => {
-    const visit = getVisitById(a.visit_id)
-    const subject = getSubjectByCode(a.subject_code)
+  const filteredAssessments = useMemo(() => assessments.filter(a => {
+    const visit = visitMap.get(a.visit_id)
+    const subject = subjectMap.get(a.subject_code)
 
     if (visitTypeFilter !== 'all' && visit?.visit_name !== visitTypeFilter) return false
     if (assessmentTypeFilter !== 'all' && a.assessment_type !== assessmentTypeFilter) return false
@@ -93,7 +97,7 @@ export default function StudyDataPage() {
         !subject?.name_pinyin.toLowerCase().includes(subjectCodeFilter.toLowerCase())) return false
 
     return true
-  })
+  }), [assessments, visitMap, subjectMap, visitTypeFilter, assessmentTypeFilter, statusFilter, subjectCodeFilter])
 
   const handleDelete = async (id: number) => {
     if (!confirm('确定要删除这条记录吗？此操作不可恢复。')) return

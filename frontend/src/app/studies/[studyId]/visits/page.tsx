@@ -134,24 +134,6 @@ export default function StudyVisitsPage() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确定要删除这个随访记录吗？')) return
-
-    try {
-      await visitsApi.delete(id)
-      toast.success('删除成功')
-      loadData()
-    } catch (error) {
-      toast.error('删除失败')
-    }
-  }
-
-  const handleSelectAllClick = () => {
-    if (selectedSubjects.length === subjects.length) {
-      setSelectedSubjects([])
-    } else {
-      setSelectedSubjects(subjects.map(s => s.id))
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -316,7 +298,7 @@ export default function StudyVisitsPage() {
             <div className="grid gap-2">
               <Label>选择受试者（已选 {selectedSubjects.length} 人）</Label>
               <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-2">
-                <div className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer" onClick={handleSelectAllClick}>
+                <div className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer" onClick={handleSelectAll}>
                   <input
                     type="checkbox"
                     checked={selectedSubjects.length === subjects.length && subjects.length > 0}

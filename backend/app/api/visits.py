@@ -10,6 +10,7 @@ from sqlalchemy import func
 import pandas as pd
 
 from app.core.database import get_db
+from app.core.permissions import get_study_member_or_403
 from app.models.tables import Subject, Visit, RawFile, Study, StudyMember, User
 from app.schemas.schemas import VisitCreate, VisitUpdate, VisitResponse
 from app.api.auth import get_current_active_user
@@ -29,17 +30,6 @@ class VisitBatchResponse(BaseModel):
     failed: List[dict]
 
 router = APIRouter()
-
-
-def _get_study_member_or_403(study_id: int, user: User, db: Session) -> StudyMember:
-    """检查用户是否有权限访问研究"""
-    member = db.query(StudyMember).filter(
-        StudyMember.study_id == study_id,
-        StudyMember.user_id == user.id
-    ).first()
-    if not member:
-        raise HTTPException(status_code=403, detail="无权访问该研究")
-    return member
 
 
 @router.post("/batch", response_model=VisitBatchResponse)

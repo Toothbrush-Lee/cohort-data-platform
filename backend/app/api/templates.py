@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.database import get_db
+from app.core.permissions import get_study_member_or_403
 from app.models.tables import AssessmentTemplate, TemplateField, Study, StudyMember, User
 from app.api.auth import get_current_active_user
 

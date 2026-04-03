@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -73,6 +73,11 @@ export default function StudyEnterPage() {
   const [expandedFileId, setExpandedFileId] = useState<number | null>(null)
   const [editingStates, setEditingStates] = useState<EditingState>({})
 
+  // Cleanup editing states on unmount
+  useEffect(() => {
+    return () => setEditingStates({})
+  }, [])
+
   // 加载模板、随访和受试者列表
   useEffect(() => {
     loadData()
@@ -80,12 +85,16 @@ export default function StudyEnterPage() {
 
   // 当 URL 中有 visit_id 时，加载该随访的详情
   useEffect(() => {
-    if (visitIdFromUrl) {
+    if (visitIdFromUrl && selectedVisitId !== visitIdFromUrl) {
       setSelectedVisitId(visitIdFromUrl)
-      loadVisitSummary(parseInt(visitIdFromUrl))
-      loadPendingFiles(parseInt(visitIdFromUrl))
+      const visitId = parseInt(visitIdFromUrl)
+      // Load summary and pending files in parallel
+      Promise.all([
+        loadVisitSummary(visitId),
+        loadPendingFiles(visitId)
+      ])
     }
-  }, [visitIdFromUrl, studyId])
+  }, [visitIdFromUrl])
 
   const loadData = async () => {
     try {
@@ -125,7 +134,6 @@ export default function StudyEnterPage() {
     }
   }
 
-  // 获取随访类型对应的受试者（去重）
   const getVisitTypeSubjects = (visitType: string): Subject[] => {
     if (!visitType) return []
     const typeVisits = visits.filter(v => v.visit_name === visitType)
@@ -133,13 +141,11 @@ export default function StudyEnterPage() {
     return subjects.filter(s => subjectIds.has(s.id))
   }
 
-  // 获取受试者的指定随访类型的随访记录
   const getSubjectVisitByType = (subjectId: string, visitType: string): Visit | null => {
     if (!subjectId || !visitType) return null
     return visits.find(v => v.subject_id === parseInt(subjectId) && v.visit_name === visitType) || null
   }
 
-  // 处理随访类型选择
   const handleVisitTypeChange = (visitType: string) => {
     setSelectedVisitType(visitType)
     setSelectedSubjectId('')
@@ -148,7 +154,6 @@ export default function StudyEnterPage() {
     setPendingFiles([])
     setFormData({})
 
-    // 自动选择第一个受试者
     const typeSubjects = getVisitTypeSubjects(visitType)
     if (typeSubjects.length > 0) {
       const firstSubject = typeSubjects[0]
@@ -161,7 +166,6 @@ export default function StudyEnterPage() {
     }
   }
 
-  // 处理受试者选择
   const handleSubjectChange = (subjectId: string) => {
     setSelectedSubjectId(subjectId)
     setFormData({})
@@ -176,7 +180,6 @@ export default function StudyEnterPage() {
     setFormData(prev => ({ ...prev, [fieldName]: value }))
   }
 
-  // 提交手动录入的数据
   const handleSubmit = async () => {
     const currentVisitId = summary?.visit?.id || parseInt(selectedVisitId)
     if (!currentVisitId || !selectedTemplate) {
@@ -216,7 +219,6 @@ export default function StudyEnterPage() {
     }
   }
 
-  // 确认已录入的数据
   const handleVerify = async (assessmentId: number) => {
     setVerifying(assessmentId)
     try {
@@ -233,7 +235,6 @@ export default function StudyEnterPage() {
     }
   }
 
-  // 删除已录入的数据
   const handleDelete = async (assessmentId: number) => {
     if (!confirm('确定要删除这条数据吗？此操作不可恢复。')) return
 
@@ -249,7 +250,6 @@ export default function StudyEnterPage() {
     }
   }
 
-  // 展开/收起文件编辑区域
   const handleExpandFile = (fileId: number, fileType: string, aiData: Record<string, any>) => {
     if (expandedFileId === fileId) {
       setExpandedFileId(null)
@@ -260,7 +260,6 @@ export default function StudyEnterPage() {
       if (template) {
         template.fields.forEach(field => {
           const value = aiData[field.field_name]
-          // 处理数字类型
           if (field.field_type === 'number' && value !== undefined && value !== null && value !== '') {
             initialData[field.field_name] = parseFloat(value)
           } else {
@@ -269,7 +268,6 @@ export default function StudyEnterPage() {
         })
       }
 
-      // 保留 AI 提取的其他字段
       Object.keys(aiData).forEach(key => {
         if (!initialData.hasOwnProperty(key)) {
           initialData[key] = aiData[key]
@@ -287,7 +285,6 @@ export default function StudyEnterPage() {
     }
   }
 
-  // 处理编辑框输入
   const handleEditInputChange = (fileId: number, fieldName: string, value: any) => {
     setEditingStates(prev => {
       const currentState = prev[fileId] || { data: {}, sampleTime: '' }
@@ -304,7 +301,6 @@ export default function StudyEnterPage() {
     })
   }
 
-  // 处理采样时间变化
   const handleSampleTimeChange = (fileId: number, value: string) => {
     setEditingStates(prev => {
       const currentState = prev[fileId] || { data: {}, sampleTime: '' }
@@ -318,7 +314,6 @@ export default function StudyEnterPage() {
     })
   }
 
-  // 确认文件数据入库
   const handleConfirmFile = async (fileId: number, fileTypeId: string) => {
     try {
       const state = editingStates[fileId]
@@ -327,7 +322,6 @@ export default function StudyEnterPage() {
         return
       }
 
-      // 过滤掉 null 和空字符串，但要保留 0
       const cleanedData: Record<string, any> = {}
       Object.entries(state.data).forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
@@ -376,7 +370,6 @@ export default function StudyEnterPage() {
     }
   }
 
-  // 验证数值是否在合理范围内
   const validateValue = (fieldName: string, value: number, template: AssessmentTemplate | undefined): string | null => {
     const field = template?.fields.find(f => f.field_name === fieldName)
     if (!field) return null
@@ -410,7 +403,6 @@ export default function StudyEnterPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* 左侧：访视选择 */}
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
