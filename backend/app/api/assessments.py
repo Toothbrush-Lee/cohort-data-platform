@@ -71,7 +71,7 @@ async def create_manual_assessment(
     )
 
 
-@router.get("/", response_model=List[AssessmentDataResponse])
+@router.get("/")
 async def list_assessments(
     visit_id: Optional[int] = Query(None),
     assessment_type: Optional[str] = Query(None),
@@ -116,7 +116,7 @@ async def list_assessments(
             "subject_code": subject.subject_code,
             "subject_name_pinyin": subject.name_pinyin,
             "visit_name": visit.visit_name,
-            "visit_date": visit.visit_date,
+            "visit_date": visit.visit_date.isoformat() if visit.visit_date else None,
         }
         data.append(item)
 
