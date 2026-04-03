@@ -1,5 +1,5 @@
 """
-数据导出 API
+数据导出 API（研究级）
 """
 import io
 import pandas as pd
@@ -11,14 +11,26 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.core.database import get_db
-from app.models.tables import AssessmentData, Visit, Subject
+from app.models.tables import AssessmentData, Visit, Subject, Study, StudyMember, User
 from app.api.auth import get_current_active_user
 
 router = APIRouter()
 
 
-@router.get("/export/csv")
+def _get_study_member_or_403(study_id: int, user: User, db: Session) -> StudyMember:
+    """检查用户是否有权限访问研究"""
+    member = db.query(StudyMember).filter(
+        StudyMember.study_id == study_id,
+        StudyMember.user_id == user.id
+    ).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="无权访问该研究")
+    return member
+
+
+@router.get("/csv")
 async def export_csv(
+    study_id: int = Query(..., description="研究 ID"),
     subject_codes: Optional[str] = Query(None, description="逗号分隔的受试者编码"),
     visit_names: Optional[str] = Query(None, description="逗号分隔的随访名称"),
     assessment_types: Optional[str] = Query(None, description="逗号分隔的检查类型"),
@@ -26,6 +38,9 @@ async def export_csv(
     current_user = Depends(get_current_active_user)
 ):
     """导出 CSV 格式数据"""
+    # 检查权限
+    _get_study_member_or_403(study_id, current_user, db)
+
     # 构建查询
     query = db.query(
         Subject.subject_code,
@@ -36,7 +51,9 @@ async def export_csv(
         AssessmentData.assessment_type,
         AssessmentData.extracted_data,
         AssessmentData.is_verified,
-    ).join(Visit).join(Subject)
+    ).join(Visit).join(Subject).filter(
+        Subject.study_id == study_id
+    )
 
     # 应用筛选
     if subject_codes:
@@ -89,8 +106,9 @@ async def export_csv(
     )
 
 
-@router.get("/export/excel")
+@router.get("/excel")
 async def export_excel(
+    study_id: int = Query(..., description="研究 ID"),
     subject_codes: Optional[str] = Query(None),
     visit_names: Optional[str] = Query(None),
     assessment_types: Optional[str] = Query(None),
@@ -98,6 +116,9 @@ async def export_excel(
     current_user = Depends(get_current_active_user)
 ):
     """导出 Excel 格式数据"""
+    # 检查权限
+    _get_study_member_or_403(study_id, current_user, db)
+
     # 构建查询（与 CSV 导出相同）
     query = db.query(
         Subject.subject_code,
@@ -108,7 +129,9 @@ async def export_excel(
         AssessmentData.assessment_type,
         AssessmentData.extracted_data,
         AssessmentData.is_verified,
-    ).join(Visit).join(Subject)
+    ).join(Visit).join(Subject).filter(
+        Subject.study_id == study_id
+    )
 
     if subject_codes:
         codes = [c.strip() for c in subject_codes.split(',')]
@@ -159,10 +182,14 @@ async def export_excel(
 
 @router.get("/wide-table")
 async def get_wide_table(
+    study_id: int = Query(..., description="研究 ID"),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
     """获取大宽表视图（用于前端数据表格展示）"""
+    # 检查权限
+    _get_study_member_or_403(study_id, current_user, db)
+
     # 获取所有已审核的数据
     results = db.query(
         Subject.subject_code,
@@ -173,6 +200,7 @@ async def get_wide_table(
         AssessmentData.assessment_type,
         AssessmentData.extracted_data,
     ).join(Visit).join(Subject).filter(
+        Subject.study_id == study_id,
         AssessmentData.is_verified == True
     ).all()
 
@@ -195,6 +223,6 @@ async def get_wide_table(
             wide_data[key][col_name] = v
 
     return {
-        "columns": list(wide_data.values()[0].keys()) if wide_data else [],
+        "columns": list(wide_data.values())[0].keys() if wide_data else [],
         "data": list(wide_data.values())
     }

@@ -2,12 +2,13 @@ import { apiRequest } from './api'
 import type { RawFile, FileUploadResponse, AssessmentData } from '@/types'
 
 export const filesApi = {
-  list: async (params?: {
+  list: async (studyId: number, params?: {
     visit_id?: number
     status?: string
     file_type?: string
   }): Promise<RawFile[]> => {
     const queryParams = new URLSearchParams()
+    queryParams.append('study_id', String(studyId))
     if (params?.visit_id) queryParams.append('visit_id', String(params.visit_id))
     if (params?.status) queryParams.append('status', params.status)
     if (params?.file_type) queryParams.append('file_type', params.file_type)
@@ -21,6 +22,7 @@ export const filesApi = {
   },
 
   upload: async (
+    studyId: number,
     file: File,
     visitId: number,
     fileType?: string
@@ -35,7 +37,7 @@ export const filesApi = {
     // 注意：上传文件时不设置 Content-Type，让浏览器自动设置
     const token = localStorage.getItem('token')
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/files/upload?visit_id=${visitId}${fileType ? `&file_type=${fileType}` : ''}`,
+      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/files/upload?study_id=${studyId}&visit_id=${visitId}${fileType ? `&file_type=${fileType}` : ''}`,
       {
         method: 'POST',
         headers: {
@@ -79,12 +81,13 @@ export const filesApi = {
 }
 
 export const assessmentsApi = {
-  list: async (params?: {
+  list: async (studyId: number, params?: {
     visit_id?: number
     assessment_type?: string
     is_verified?: boolean
   }): Promise<AssessmentData[]> => {
     const queryParams = new URLSearchParams()
+    queryParams.append('study_id', String(studyId))
     if (params?.visit_id) queryParams.append('visit_id', String(params.visit_id))
     if (params?.assessment_type) queryParams.append('assessment_type', params.assessment_type)
     if (params?.is_verified !== undefined) queryParams.append('is_verified', String(params.is_verified))
@@ -116,5 +119,23 @@ export const assessmentsApi = {
     }>
   }> => {
     return apiRequest(`/assessments/visit/${visitId}/summary`)
+  },
+
+  createManual: async (data: {
+    visit_id: number
+    assessment_type: string
+    extracted_data: Record<string, unknown>
+    sample_time?: string
+  }): Promise<AssessmentData> => {
+    return apiRequest<AssessmentData>('/assessments/manual', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  delete: async (id: number): Promise<void> => {
+    return apiRequest<void>(`/assessments/${id}`, {
+      method: 'DELETE',
+    })
   },
 }

@@ -3,7 +3,7 @@
 
 核心业务逻辑：
 所有数据必须挂载在以下层级之下，避免数据孤岛：
-项目 (Project) -> 受试者 (Subject) -> 随访波次 (Visit) -> 检查项目 (Assessment) -> 数据负载 (Payload)
+研究 (Study) -> 受试者 (Subject) -> 随访波次 (Visit) -> 检查项目 (Assessment) -> 数据负载 (Payload)
 """
 from datetime import datetime
 from sqlalchemy import (
@@ -53,6 +53,47 @@ class FileStatus(str, enum.Enum):
     REJECTED = "rejected"  # 已驳回
 
 
+class Study(Base):
+    """研究表 - 多队列研究的核心容器"""
+    __tablename__ = "studies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)  # 研究名称（如"队列 A"）
+    code: Mapped[str] = mapped_column(String(50), unique=True, index=True)  # 研究编码（如"COHORT_A"）
+    description: Mapped[str] = mapped_column(Text, nullable=True)  # 研究描述
+    visit_types: Mapped[dict] = mapped_column(JSONB, default=lambda: {
+        "Baseline": "基线",
+        "V1": "1 月",
+        "V3": "3 月",
+        "V6": "6 月",
+        "V12": "12 月",
+        "Other": "其他"
+    })  # 随访类型配置
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)  # 是否启用
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
+
+    # 关系
+    subjects = relationship("Subject", back_populates="study", cascade="all, delete-orphan")
+    templates = relationship("AssessmentTemplate", back_populates="study", cascade="all, delete-orphan")
+    members = relationship("StudyMember", back_populates="study", cascade="all, delete-orphan")
+
+
+class StudyMember(Base):
+    """研究成员表 - 用户与研究的关联（多对多）"""
+    __tablename__ = "study_members"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    study_id: Mapped[int] = mapped_column(Integer, ForeignKey("studies.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), default="analyst")  # 研究内的角色
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # 关系
+    study = relationship("Study", back_populates="members")
+    user = relationship("User")
+
+
 class User(Base):
     """用户表 - 支持 RBAC 权限控制"""
     __tablename__ = "users"
@@ -68,6 +109,7 @@ class User(Base):
     # 关系
     uploaded_files = relationship("RawFile", back_populates="uploaded_by_user", foreign_keys="RawFile.uploaded_by")
     verified_files = relationship("RawFile", back_populates="verified_by_user", foreign_keys="RawFile.verified_by")
+    study_memberships = relationship("StudyMember", back_populates="user")
 
 
 class Subject(Base):
@@ -75,7 +117,8 @@ class Subject(Base):
     __tablename__ = "subjects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    subject_code: Mapped[str] = mapped_column(String(50), unique=True, index=True)  # 受试者唯一编码
+    study_id: Mapped[int] = mapped_column(Integer, ForeignKey("studies.id"), nullable=False)
+    subject_code: Mapped[str] = mapped_column(String(50), index=True)  # 受试者编码（研究内唯一）
     name_pinyin: Mapped[str] = mapped_column(String(100))  # 姓名拼音缩写
     gender: Mapped[str] = mapped_column(String(10))  # 男/女
     birth_date: Mapped[datetime] = mapped_column(DateTime)
@@ -85,7 +128,13 @@ class Subject(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     # 关系
+    study = relationship("Study", back_populates="subjects")
     visits = relationship("Visit", back_populates="subject", cascade="all, delete-orphan", order_by="Visit.visit_date")
+
+    # 唯一约束：study_id + subject_code 组合唯一
+    __table_args__ = (
+        # 组合唯一约束在 alembic 迁移中定义
+    )
 
 
 class Visit(Base):
@@ -154,11 +203,12 @@ class AssessmentData(Base):
 
 
 class AssessmentTemplate(Base):
-    """检测模板表 - 定义每类检测的指标模板"""
+    """检测模板表 - 定义每类检测的指标模板（研究级配置）"""
     __tablename__ = "assessment_templates"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    template_name: Mapped[str] = mapped_column(String(100), unique=True)  # EndoPAT, TCD, Vicorder, BloodTest
+    study_id: Mapped[int] = mapped_column(Integer, ForeignKey("studies.id"), nullable=False)
+    template_name: Mapped[str] = mapped_column(String(100))  # EndoPAT, TCD, Vicorder, BloodTest
     display_name: Mapped[str] = mapped_column(String(100))  # 中文显示名
     description: Mapped[str] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -166,6 +216,7 @@ class AssessmentTemplate(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     # 关系
+    study = relationship("Study", back_populates="templates")
     fields = relationship("TemplateField", back_populates="template", cascade="all, delete-orphan", order_by="TemplateField.sort_order")
 
 

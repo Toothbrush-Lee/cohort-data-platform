@@ -6,6 +6,53 @@ from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
+# ============== Study Schemas ==============
+class StudyBase(BaseModel):
+    name: str
+    code: str
+    description: Optional[str] = None
+    visit_types: Optional[dict] = None
+    is_active: bool = True
+
+
+class StudyCreate(StudyBase):
+    pass
+
+
+class StudyUpdate(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    description: Optional[str] = None
+    visit_types: Optional[dict] = None
+    is_active: Optional[bool] = None
+
+
+class StudyResponse(StudyBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    member_count: int = 0
+    subject_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StudyMemberCreate(BaseModel):
+    user_id: int
+    role: str = "analyst"
+
+
+class StudyMemberResponse(BaseModel):
+    id: int
+    study_id: int
+    user_id: int
+    role: str
+    created_at: datetime
+    user: Optional[dict] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ============== User Schemas ==============
 class UserBase(BaseModel):
     username: str

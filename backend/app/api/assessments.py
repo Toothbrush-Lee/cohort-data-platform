@@ -1,5 +1,5 @@
 """
-检查数据管理 API
+检查数据管理 API（研究级）
 """
 from typing import List, Optional, Any
 from datetime import datetime
@@ -13,11 +13,30 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.database import get_db
-from app.models.tables import AssessmentData, Visit, Subject
+from app.models.tables import AssessmentData, Visit, Subject, Study, StudyMember, User
 from app.schemas.schemas import AssessmentDataResponse, AssessmentDataUpdate
 from app.api.auth import get_current_active_user
 
 router = APIRouter()
+
+
+def _get_study_member_or_403(study_id: int, user: User, db: Session) -> StudyMember:
+    """检查用户是否有权限访问研究"""
+    member = db.query(StudyMember).filter(
+        StudyMember.study_id == study_id,
+        StudyMember.user_id == user.id
+    ).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="无权访问该研究")
+    return member
+
+
+def _get_study_id_from_visit(visit_id: int, db: Session) -> int:
+    """从随访 ID 获取研究 ID"""
+    visit = db.query(Visit).join(Subject).filter(Visit.id == visit_id).first()
+    if not visit:
+        raise HTTPException(status_code=404, detail="随访记录不存在")
+    return visit.subject.study_id
 
 
 class ManualAssessmentCreate(BaseModel):
@@ -40,6 +59,10 @@ async def create_manual_assessment(
     visit = db.query(Visit).filter(Visit.id == assessment.visit_id).first()
     if not visit:
         raise HTTPException(status_code=404, detail="随访记录不存在")
+
+    # 获取研究 ID 并检查权限
+    study_id = visit.subject.study_id
+    _get_study_member_or_403(study_id, current_user, db)
 
     db_assessment = AssessmentData(
         visit_id=assessment.visit_id,
@@ -73,6 +96,7 @@ async def create_manual_assessment(
 
 @router.get("/")
 async def list_assessments(
+    study_id: int = Query(..., description="研究 ID"),
     visit_id: Optional[int] = Query(None),
     assessment_type: Optional[str] = Query(None),
     is_verified: Optional[bool] = Query(None),
@@ -82,11 +106,14 @@ async def list_assessments(
     current_user = Depends(get_current_active_user)
 ):
     """获取检查数据列表"""
+    # 检查权限
+    _get_study_member_or_403(study_id, current_user, db)
+
     query = db.query(AssessmentData, Visit, Subject).join(
         Visit, AssessmentData.visit_id == Visit.id
     ).join(
         Subject, Visit.subject_id == Subject.id
-    )
+    ).filter(Subject.study_id == study_id)
 
     if visit_id:
         query = query.filter(AssessmentData.visit_id == visit_id)

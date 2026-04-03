@@ -1,5 +1,5 @@
 """
-文件上传与管理 API
+文件上传与管理 API（研究级）
 """
 import os
 import uuid
@@ -14,12 +14,31 @@ from starlette.background import BackgroundTask
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.models.tables import RawFile, Visit, FileStatus
+from app.models.tables import RawFile, Visit, FileStatus, Subject, Study, StudyMember, User
 from app.schemas.schemas import RawFileResponse, FileUploadResponse, RawFileUpdate
 from app.api.auth import get_current_active_user
 from app.services.ai_extractor import extract_data_from_file
 
 router = APIRouter()
+
+
+def _get_study_member_or_403(study_id: int, user: User, db: Session) -> StudyMember:
+    """检查用户是否有权限访问研究"""
+    member = db.query(StudyMember).filter(
+        StudyMember.study_id == study_id,
+        StudyMember.user_id == user.id
+    ).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="无权访问该研究")
+    return member
+
+
+def _get_study_id_from_visit(visit_id: int, db: Session) -> int:
+    """从随访 ID 获取研究 ID"""
+    visit = db.query(Visit).join(Subject).filter(Visit.id == visit_id).first()
+    if not visit:
+        raise HTTPException(status_code=404, detail="随访记录不存在")
+    return visit.subject.study_id
 
 
 def generate_stored_filename(original_filename: str, visit_id: int, file_type: str) -> str:
@@ -54,16 +73,23 @@ def get_file_type_from_filename(filename: str) -> str:
 @router.post("/upload", response_model=FileUploadResponse)
 async def upload_file(
     file: UploadFile = File(...),
+    study_id: int = Query(..., description="研究 ID"),
     visit_id: int = Query(...),
     file_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
     """上传文件并触发 AI 提取"""
-    # 检查随访是否存在
-    visit = db.query(Visit).filter(Visit.id == visit_id).first()
+    # 检查权限
+    _get_study_member_or_403(study_id, current_user, db)
+
+    # 检查随访是否存在且属于该研究
+    visit = db.query(Visit).join(Subject).filter(
+        Visit.id == visit_id,
+        Subject.study_id == study_id
+    ).first()
     if not visit:
-        raise HTTPException(status_code=404, detail="随访记录不存在")
+        raise HTTPException(status_code=404, detail="随访记录不存在或不属于该研究")
 
     # 确定文件类型
     if not file_type:
@@ -96,9 +122,12 @@ async def upload_file(
 
     # 后台触发 AI 提取
     try:
-        # 从数据库获取模板字段
+        # 从数据库获取模板字段（研究级）
         from app.models.tables import AssessmentTemplate, TemplateField
-        template = db.query(AssessmentTemplate).filter(AssessmentTemplate.template_name == file_type).first()
+        template = db.query(AssessmentTemplate).filter(
+            AssessmentTemplate.study_id == study_id,
+            AssessmentTemplate.template_name == file_type
+        ).first()
         template_fields = None
         if template:
             fields = db.query(TemplateField).filter(TemplateField.template_id == template.id).all()
@@ -139,6 +168,7 @@ async def upload_file(
 
 @router.get("/", response_model=List[RawFileResponse])
 async def list_files(
+    study_id: int = Query(..., description="研究 ID"),
     visit_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
     file_type: Optional[str] = Query(None),
@@ -148,7 +178,12 @@ async def list_files(
     current_user = Depends(get_current_active_user)
 ):
     """获取文件列表"""
-    query = db.query(RawFile)
+    # 检查权限
+    _get_study_member_or_403(study_id, current_user, db)
+
+    query = db.query(RawFile).join(Visit).join(Subject).filter(
+        Subject.study_id == study_id
+    )
 
     if visit_id:
         query = query.filter(RawFile.visit_id == visit_id)

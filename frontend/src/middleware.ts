@@ -3,12 +3,8 @@ import type { NextRequest } from 'next/server'
 
 // 需要认证的路由
 const protectedRoutes = [
-  '/subjects',
-  '/visits',
-  '/upload',
-  '/data',
-  '/export',
-  '/enter',
+  '/studies',
+  '/login',
   '/help',
   '/admin',
 ]
@@ -27,6 +23,13 @@ export function middleware(request: NextRequest) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('from', pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // 访问根路径时重定向到研究列表页
+  if (pathname === '/') {
+    if (token) {
+      return NextResponse.redirect(new URL('/studies', request.url))
+    }
   }
 
   return NextResponse.next()
