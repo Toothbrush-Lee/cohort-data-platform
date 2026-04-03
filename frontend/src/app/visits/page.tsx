@@ -197,36 +197,40 @@ export default function VisitsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                visits.map((visit) => (
-                  <TableRow key={visit.id}>
-                    <TableCell className="font-medium">{visit.subject_code}</TableCell>
-                    <TableCell>{visit.subject_code}</TableCell>
-                    <TableCell>
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                        {visit.visit_name}
-                      </span>
-                    </TableCell>
-                    <TableCell>{visit.visit_date.split('T')[0]}</TableCell>
-                    <TableCell>{visit.file_count || 0}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Link href={`/upload?visit_id=${visit.id}`}>
-                          <Button variant="ghost" size="sm">上传</Button>
-                        </Link>
-                        <Link href={`/enter?visit_id=${visit.id}`}>
-                          <Button variant="ghost" size="sm">审核</Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(visit.id)}
-                        >
-                          删除
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                visits.map((visit) => {
+                  // 查找对应的受试者信息
+                  const subject = subjects.find(s => s.id === visit.subject_id)
+                  return (
+                    <TableRow key={visit.id}>
+                      <TableCell className="font-medium">{visit.subject_code}</TableCell>
+                      <TableCell>{subject?.name_pinyin || visit.subject_code}</TableCell>
+                      <TableCell>
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                          {visit.visit_name}
+                        </span>
+                      </TableCell>
+                      <TableCell>{visit.visit_date.split('T')[0]}</TableCell>
+                      <TableCell>{visit.file_count || 0}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Link href={`/upload?visit_id=${visit.id}`}>
+                            <Button variant="ghost" size="sm">上传</Button>
+                          </Link>
+                          <Link href={`/enter?visit_id=${visit.id}`}>
+                            <Button variant="ghost" size="sm">审核</Button>
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(visit.id)}
+                          >
+                            删除
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
