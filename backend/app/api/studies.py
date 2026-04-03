@@ -28,8 +28,8 @@ def _get_study_member_or_403(study_id: int, user: User, db: Session) -> StudyMem
 @router.post("/", response_model=StudyResponse)
 async def create_study(
     study: StudyCreate,
-    db: Session = Depends(get_current_admin_user),
-    current_user = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_admin_user)
 ):
     """创建新研究（仅管理员）"""
     # 检查 code 是否已存在
@@ -154,8 +154,8 @@ async def get_study(
 async def update_study(
     study_id: int,
     study_update: StudyUpdate,
-    db: Session = Depends(get_current_admin_user),
-    current_user = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_admin_user)
 ):
     """更新研究配置（仅管理员）"""
     study = db.query(Study).filter(Study.id == study_id).first()
@@ -174,8 +174,8 @@ async def update_study(
 @router.delete("/{study_id}")
 async def delete_study(
     study_id: int,
-    db: Session = Depends(get_current_admin_user),
-    current_user = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_admin_user)
 ):
     """删除研究（仅管理员，软删除改为 is_active=False）"""
     study = db.query(Study).filter(Study.id == study_id).first()
@@ -223,8 +223,8 @@ async def list_study_members(
 async def add_study_member(
     study_id: int,
     member: StudyMemberCreate,
-    db: Session = Depends(get_current_admin_user),
-    current_user = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_admin_user)
 ):
     """添加研究成员（仅管理员）"""
     # 检查研究是否存在
@@ -262,8 +262,8 @@ async def update_study_member(
     study_id: int,
     user_id: int,
     role: str,
-    db: Session = Depends(get_current_admin_user),
-    current_user = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_admin_user)
 ):
     """更新研究成员角色（仅管理员）"""
     member = db.query(StudyMember).filter(
@@ -283,8 +283,8 @@ async def update_study_member(
 async def remove_study_member(
     study_id: int,
     user_id: int,
-    db: Session = Depends(get_current_admin_user),
-    current_user = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_admin_user)
 ):
     """移除研究成员（仅管理员）"""
     member = db.query(StudyMember).filter(
