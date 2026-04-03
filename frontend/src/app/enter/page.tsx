@@ -65,6 +65,7 @@ export default function EnterPage() {
   const [templates, setTemplates] = useState<AssessmentTemplate[]>([])
   const [summary, setSummary] = useState<VisitSummary | null>(null)
 
+  const [selectedVisitType, setSelectedVisitType] = useState<string>('')
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('')
   const [selectedVisitId, setSelectedVisitId] = useState<string>('')
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
@@ -90,9 +91,10 @@ export default function EnterPage() {
 
   useEffect(() => {
     if (visitId) {
-      // 根据 visit_id 反推出 subject_id
+      // 根据 visit_id 反推出 subject_id 和 visit_type
       const visit = visits.find(v => v.id === parseInt(visitId))
       if (visit) {
+        setSelectedVisitType(visit.visit_name)
         setSelectedSubjectId(visit.subject_id.toString())
         setSelectedVisitId(visitId)
         loadSummary(parseInt(visitId))
@@ -140,9 +142,18 @@ export default function EnterPage() {
     return { visit, subject }
   }
 
-  const getSubjectVisits = (subjectId: string) => {
-    if (!subjectId) return []
-    return visits.filter(v => v.subject_id === parseInt(subjectId))
+  const getVisitTypeSubjects = (visitType: string) => {
+    if (!visitType) return []
+    // 获取该随访类型下的所有随访记录
+    const typeVisits = visits.filter(v => v.visit_name === visitType)
+    // 返回对应的受试者信息（去重）
+    const subjectIds = new Set(typeVisits.map(v => v.subject_id))
+    return subjects.filter(s => subjectIds.has(s.id))
+  }
+
+  const getSubjectVisitByType = (subjectId: string, visitType: string) => {
+    if (!subjectId || !visitType) return null
+    return visits.find(v => v.subject_id === parseInt(subjectId) && v.visit_name === visitType)
   }
 
   const handleInputChange = (fieldName: string, value: string | number | boolean) => {
@@ -371,15 +382,49 @@ export default function EnterPage() {
       <Header />
 
       <main className="container mx-auto px-4 py-8">
-        {/* 顶部：访视选择 - 改为按人选择和按随访次选择 */}
+        {/* 顶部：访视选择 - 先选择随访类型，再选择受试者 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="md:col-span-1">
             <Card>
               <CardHeader>
                 <CardTitle>选择随访记录</CardTitle>
-                <CardDescription>先选择受试者，再选择随访</CardDescription>
+                <CardDescription>按随访阶段分组，同一阶段多条记录会合并</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="visit-type-select">随访类型</Label>
+                  <select
+                    id="visit-type-select"
+                    value={selectedVisitType}
+                    onChange={(e) => {
+                      setSelectedVisitType(e.target.value)
+                      setSelectedSubjectId('')
+                      setSelectedVisitId('')
+                      setFormData({})
+                      // 自动选择该随访类型下的第一个受试者
+                      const typeSubjects = getVisitTypeSubjects(e.target.value)
+                      if (typeSubjects.length > 0) {
+                        const firstSubject = typeSubjects[0]
+                        setSelectedSubjectId(firstSubject.id.toString())
+                        const visit = getSubjectVisitByType(firstSubject.id.toString(), e.target.value)
+                        if (visit) {
+                          setSelectedVisitId(visit.id.toString())
+                          router.push(`/enter?visit_id=${visit.id}`)
+                        }
+                      }
+                    }}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">选择随访类型</option>
+                    <option value="Baseline">Baseline (基线)</option>
+                    <option value="V1">V1 (1 月)</option>
+                    <option value="V3">V3 (3 月)</option>
+                    <option value="V6">V6 (6 月)</option>
+                    <option value="V12">V12 (12 月)</option>
+                    <option value="Other">Other (其他)</option>
+                  </select>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="subject-select">受试者</Label>
                   <select
@@ -387,46 +432,20 @@ export default function EnterPage() {
                     value={selectedSubjectId}
                     onChange={(e) => {
                       setSelectedSubjectId(e.target.value)
-                      setSelectedVisitId('')
                       setFormData({})
-                      const subjectVisits = getSubjectVisits(e.target.value)
-                      if (subjectVisits.length > 0) {
-                        // 自动选择第一个随访
-                        const firstVisit = subjectVisits[0]
-                        setSelectedVisitId(firstVisit.id.toString())
-                        router.push(`/enter?visit_id=${firstVisit.id}`)
+                      const visit = getSubjectVisitByType(e.target.value, selectedVisitType)
+                      if (visit) {
+                        setSelectedVisitId(visit.id.toString())
+                        router.push(`/enter?visit_id=${visit.id}`)
                       }
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled={!selectedVisitType}
                   >
                     <option value="">选择受试者</option>
-                    {subjects.map((subject) => (
+                    {getVisitTypeSubjects(selectedVisitType).map((subject) => (
                       <option key={subject.id} value={subject.id}>
                         {subject.subject_code} - {subject.name_pinyin}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="visit-select">随访记录</Label>
-                  <select
-                    id="visit-select"
-                    value={selectedVisitId}
-                    onChange={(e) => {
-                      setSelectedVisitId(e.target.value)
-                      setFormData({})
-                      if (e.target.value) {
-                        router.push(`/enter?visit_id=${e.target.value}`)
-                      }
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    disabled={!selectedSubjectId}
-                  >
-                    <option value="">选择随访</option>
-                    {getSubjectVisits(selectedSubjectId).map((visit) => (
-                      <option key={visit.id} value={visit.id}>
-                        {visit.visit_name} ({visit.visit_date.split('T')[0]})
                       </option>
                     ))}
                   </select>
@@ -437,6 +456,7 @@ export default function EnterPage() {
                     <p className="text-sm font-medium">{selectedVisitInfo.subject?.name_pinyin}</p>
                     <p className="text-xs text-gray-500">{selectedVisitInfo.subject?.subject_code}</p>
                     <p className="text-xs text-gray-500">{selectedVisitInfo.visit.visit_name}</p>
+                    <p className="text-xs text-gray-500">{selectedVisitInfo.visit.visit_date.split('T')[0]}</p>
                   </div>
                 )}
               </CardContent>
