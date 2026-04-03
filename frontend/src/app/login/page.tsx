@@ -14,6 +14,7 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -23,9 +24,18 @@ export default function LoginPage() {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (token) {
-      router.push('/subjects')
+      // 获取来源页面
+      const from = searchParams.get('from') || '/subjects'
+      router.push(from)
+    } else {
+      setChecking(false)
     }
-  }, [router])
+  }, [router, searchParams])
+
+  // 如果正在检查登录状态，不渲染任何内容
+  if (checking) {
+    return null
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,7 +47,8 @@ export default function LoginPage() {
 
       // 获取来源页面
       const from = searchParams.get('from') || '/subjects'
-      router.push(from)
+      // 使用 window.location.href 强制刷新页面，让 middleware 获取最新的 cookie
+      window.location.href = from
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '登录失败'
       console.error('Login error:', error)
