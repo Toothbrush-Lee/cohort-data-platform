@@ -19,10 +19,13 @@ RUN pip install uv
 FROM base AS development
 
 # 复制项目文件
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml ./
 
-# 安装依赖
-RUN uv sync --frozen
+# 复制 uv.lock (如果存在)
+COPY uv.lock ./uv.lock 2>/dev/null || true
+
+# 安装依赖 (如果有 lock 文件则使用 --frozen)
+RUN if [ -f uv.lock ]; then uv sync --frozen; else uv sync; fi
 
 # 复制应用代码
 COPY . .
@@ -35,10 +38,13 @@ CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", 
 FROM base AS production
 
 # 复制项目文件
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml ./
 
-# 仅安装生产依赖
-RUN uv sync --frozen --no-dev
+# 复制 uv.lock (如果存在)
+COPY uv.lock ./uv.lock 2>/dev/null || true
+
+# 仅安装生产依赖 (如果有 lock 文件则使用 --frozen)
+RUN if [ -f uv.lock ]; then uv sync --frozen --no-dev; else uv sync --no-dev; fi
 
 # 复制应用代码
 COPY . .

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,11 +12,20 @@ import { toast } from 'sonner'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   })
+
+  // 检查是否已登录
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      router.push('/subjects')
+    }
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,7 +34,10 @@ export default function LoginPage() {
     try {
       await authApi.login(formData.username, formData.password)
       toast.success('登录成功')
-      router.push('/subjects')
+
+      // 获取来源页面
+      const from = searchParams.get('from') || '/subjects'
+      router.push(from)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '登录失败'
       console.error('Login error:', error)
@@ -76,7 +88,7 @@ export default function LoginPage() {
               {loading ? '登录中...' : '登录'}
             </Button>
             <p className="text-sm text-center text-gray-500">
-              默认管理员账户：admin / admin123
+              默认管理员账户：admin / Admin@123456
             </p>
           </CardFooter>
         </form>

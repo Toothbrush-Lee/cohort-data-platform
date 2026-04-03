@@ -6,15 +6,36 @@ import { Button } from '@/components/ui/button'
 import { authApi } from '@/lib/auth'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
 export function Header() {
   const router = useRouter()
   const pathname = usePathname()
+  const [isAdmin, setIsAdmin] = useState(false)
 
-  const handleLogout = () => {
+  // 检查当前用户是否为管理员
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const user = await authApi.getCurrentUser()
+        setIsAdmin(user?.role === 'admin')
+      } catch (error) {
+        console.error('Failed to get current user:', error)
+      }
+    }
+    checkAdmin()
+  }, [])
+
+  const handleLogout = async () => {
     authApi.logout()
-    router.push('/')
     toast.success('已退出登录')
+    // 清除 token 后跳转到登录页
+    router.push('/login')
+  }
+
+  // 检查是否在登录页
+  if (pathname === '/login') {
+    return null
   }
 
   // 主导航显示核心页面
@@ -46,6 +67,11 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link href="/admin">
+              <Button variant="outline" size="sm">👤 用户管理</Button>
+            </Link>
+          )}
           <Link href="/help">
             <Button variant="outline" size="sm">📖 帮助</Button>
           </Link>

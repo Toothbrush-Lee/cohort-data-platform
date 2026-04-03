@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api import subjects, visits, files, assessments, export, auth, templates
+from app.api import subjects, visits, files, assessments, export, auth, templates, users
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -32,6 +32,7 @@ app.include_router(files.router, prefix="/api/v1/files", tags=["文件管理"])
 app.include_router(assessments.router, prefix="/api/v1/assessments", tags=["检查数据管理"])
 app.include_router(export.router, prefix="/api/v1/export", tags=["数据导出"])
 app.include_router(templates.router, prefix="/api/v1/templates", tags=["检测模板"])
+app.include_router(users.router, prefix="/api/v1/users", tags=["用户管理"])
 
 
 @app.get("/")
