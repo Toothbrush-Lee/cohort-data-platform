@@ -65,6 +65,7 @@ export default function EnterPage() {
   const [templates, setTemplates] = useState<AssessmentTemplate[]>([])
   const [summary, setSummary] = useState<VisitSummary | null>(null)
 
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('')
   const [selectedVisitId, setSelectedVisitId] = useState<string>('')
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [sampleTime, setSampleTime] = useState<string>('')
@@ -89,10 +90,15 @@ export default function EnterPage() {
 
   useEffect(() => {
     if (visitId) {
-      setSelectedVisitId(visitId)
-      loadSummary(parseInt(visitId))
+      // 根据 visit_id 反推出 subject_id
+      const visit = visits.find(v => v.id === parseInt(visitId))
+      if (visit) {
+        setSelectedSubjectId(visit.subject_id.toString())
+        setSelectedVisitId(visitId)
+        loadSummary(parseInt(visitId))
+      }
     }
-  }, [visitId])
+  }, [visitId, visits])
 
   const loadData = async () => {
     try {
@@ -132,6 +138,11 @@ export default function EnterPage() {
 
     const subject = subjects.find(s => s.id === parseInt(visit.subject_id.toString()))
     return { visit, subject }
+  }
+
+  const getSubjectVisits = (subjectId: string) => {
+    if (!subjectId) return []
+    return visits.filter(v => v.subject_id === parseInt(subjectId))
   }
 
   const handleInputChange = (fieldName: string, value: string | number | boolean) => {
@@ -360,15 +371,43 @@ export default function EnterPage() {
       <Header />
 
       <main className="container mx-auto px-4 py-8">
-        {/* 顶部：访视选择 */}
+        {/* 顶部：访视选择 - 改为按人选择和按随访次选择 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="md:col-span-1">
             <Card>
               <CardHeader>
                 <CardTitle>选择随访记录</CardTitle>
-                <CardDescription>快速切换受试者和随访</CardDescription>
+                <CardDescription>先选择受试者，再选择随访</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="subject-select">受试者</Label>
+                  <select
+                    id="subject-select"
+                    value={selectedSubjectId}
+                    onChange={(e) => {
+                      setSelectedSubjectId(e.target.value)
+                      setSelectedVisitId('')
+                      setFormData({})
+                      const subjectVisits = getSubjectVisits(e.target.value)
+                      if (subjectVisits.length > 0) {
+                        // 自动选择第一个随访
+                        const firstVisit = subjectVisits[0]
+                        setSelectedVisitId(firstVisit.id.toString())
+                        router.push(`/enter?visit_id=${firstVisit.id}`)
+                      }
+                    }}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">选择受试者</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.subject_code} - {subject.name_pinyin}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="visit-select">随访记录</Label>
                   <select
@@ -382,11 +421,12 @@ export default function EnterPage() {
                       }
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled={!selectedSubjectId}
                   >
-                    <option value="">选择随访记录</option>
-                    {visits.map((visit) => (
+                    <option value="">选择随访</option>
+                    {getSubjectVisits(selectedSubjectId).map((visit) => (
                       <option key={visit.id} value={visit.id}>
-                        {visit.subject_code} - {visit.visit_name} ({visit.visit_date.split('T')[0]})
+                        {visit.visit_name} ({visit.visit_date.split('T')[0]})
                       </option>
                     ))}
                   </select>
